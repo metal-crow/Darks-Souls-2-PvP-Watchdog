@@ -85,8 +85,8 @@ public class watchdog_main {
          **************************************************************************/  
         
         //thread to listen for exit
-        final listener_exit listener_exit_thread=new listener_exit();
-        listener_exit_thread.start();
+        final commands_listener commands_listener_thread=new commands_listener();
+        commands_listener_thread.start();
         
         pcap.loop(Pcap.LOOP_INFINITE, new JBufferHandler<Object>() {  
         	  
@@ -127,7 +127,7 @@ public class watchdog_main {
             	//to exit loop
             	if (exitloop) {
             		System.out.println("stopping");
-            		listener_exit_thread.listening=false;
+            		commands_listener_thread.listening=false;
             		pcap.breakloop();
             	}
             }

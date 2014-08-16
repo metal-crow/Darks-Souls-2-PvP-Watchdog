@@ -1,7 +1,7 @@
 import java.util.Scanner;
 
 
-public class listener_exit extends Thread{
+public class commands_listener extends Thread{
 	
 	public boolean listening=true;
 	
