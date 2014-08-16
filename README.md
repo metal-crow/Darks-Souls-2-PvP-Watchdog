@@ -7,3 +7,4 @@ Required the Winpcap driver (for windows) or the libpcap driver for linux.
 Written using the jNetPcap java wrapper library.
 
 Currently very much a beta.
+Also, i have no clue how to use jNetPcap, so this will probably look awful if you do.

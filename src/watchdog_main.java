@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Scanner;
 
@@ -9,11 +10,16 @@ import org.jnetpcap.PcapHeader;
 import org.jnetpcap.PcapIf;
 import org.jnetpcap.nio.JBuffer;
 import org.jnetpcap.nio.JMemory;
+import org.jnetpcap.packet.JHeader;
+import org.jnetpcap.packet.JHeaderPool;
 import org.jnetpcap.packet.JPacket;
 import org.jnetpcap.packet.JPacketHandler;
 import org.jnetpcap.packet.PcapPacket;
 import org.jnetpcap.packet.PcapPacketHandler;
+import org.jnetpcap.packet.annotate.Header;
 import org.jnetpcap.packet.format.FormatUtils;
+import org.jnetpcap.packet.structure.AnnotatedHeader;
+import org.jnetpcap.packet.structure.JField;
 import org.jnetpcap.protocol.lan.Ethernet;
 import org.jnetpcap.protocol.network.Ip4;
 import org.jnetpcap.protocol.tcpip.Http;
@@ -79,16 +85,17 @@ public class watchdog_main {
          **************************************************************************/  
         
         //thread to listen for exit
-        new listener_exit().start();
+        final listener_exit listener_exit_thread=new listener_exit();
+        listener_exit_thread.start();
         
         pcap.loop(Pcap.LOOP_INFINITE, new JBufferHandler<Object>() {  
         	  
             /** 
-             * We purposely define and allocate our working tcp header (accessor) 
+             * We purposely define and allocate our working headers (accessor) 
              * outside the dispatch function and thus the libpcap loop, as this type 
-             * of object is reusable and it would be a very big waist of time and 
+             * of object is reusable and it would be a very big waste of time and 
              * resources to allocate it per every dispatch of a packet. We mark it 
-             * final since we do not plan on allocating any other instances of Tcp. 
+             * final since we do not plan on allocating any other instances of them. 
              */  
             final Tcp tcp = new Tcp();  
             final PcapPacket packet = new PcapPacket(JMemory.POINTER);  
@@ -96,16 +103,31 @@ public class watchdog_main {
             
             /*main work here. We want to scan each incoming packet, and check the process its attached to.
              * If its steam, check if its a tcp/ucp packet, and is leaving the local ip.
-             * If so, add it to a global buffer of ips along with its capture time. Its a Dks2 user ip.*/
+             * If so, add it to a global buffer of ips along with its capture time. Its a Dks2 user ip.
+             * also, use convo_id*/
             public void nextPacket(PcapHeader header, JBuffer buffer, Object user) {  
             	packet.peerAndScan(Ethernet.ID, header, buffer);  
-            	if (packet.hasHeader(ip)){
-            		System.out.println("time="+new Date(packet.getCaptureHeader().timestampInMillis())+" from="+FormatUtils.ip(ip.source())+", dest="+FormatUtils.ip(ip.destination())+", protocal=");  
+            	
+            	HashMap<String,String> packetinfo = new HashMap<String,String>(4);
+            	
+            	packetinfo.put("time",new Date(packet.getCaptureHeader().timestampInMillis()).toString());
+            	
+            	if (packet.hasHeader(ip) && packet.hasHeader(tcp)){
+            		packetinfo.put("from ip",FormatUtils.ip(ip.source()));
+            		packetinfo.put("dest ip",FormatUtils.ip(ip.destination()));
+            		packetinfo.put("from port",String.valueOf(tcp.source()));
+            		packetinfo.put("dest port",String.valueOf(tcp.destination()));
             	}
+            	
+            	for(String info:packetinfo.keySet()){
+            		System.out.print(info+":"+packetinfo.get(info)+"   ");
+            	}
+            	System.out.println("");
             	
             	//to exit loop
             	if (exitloop) {
             		System.out.println("stopping");
+            		listener_exit_thread.listening=false;
             		pcap.breakloop();
             	}
             }
