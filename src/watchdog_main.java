@@ -1,5 +1,13 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 
@@ -65,8 +73,27 @@ public class watchdog_main {
             return;  
         }  
   
+        
+        //get list of all networked processes
+    	//TODO i dont know if theres a better way/library of doing this, so for know im just going to run a cmd command and parse the text
+    	StringBuffer networked_processessb=new StringBuffer();
+		try {
+			Process p = Runtime.getRuntime().exec("netstat -aon");
+			BufferedReader commandoutput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+			String line = null;  
+            while ((line = commandoutput.readLine()) != null) {  
+            	if(line.length()>0){
+            		networked_processessb.append(line.trim()+"\n");
+            	}
+            }  
+		} catch (IOException e) {
+			System.err.println("Problem opening cmd");
+			e.printStackTrace();
+		}
+		final String[] networked_processes=networked_processessb.toString().split("\n");
+        
         /*************************************************************************** 
-         * Fourth we enter the loop and tell it to capture 10 packets. The loop 
+         * We enter the loop and tell it to capture packets. The loop 
          * method does a mapping of pcap.datalink() DLT value to JProtocol ID, which 
          * is needed by JScanner. The scanner scans the packet buffer and decodes 
          * the headers. The mapping is done automatically, although a variation on 
@@ -74,10 +101,11 @@ public class watchdog_main {
          * which protocol ID to use as the data link type for this pcap interface. 
          **************************************************************************/  
         
-        //thread to listen for exit
+        //thread to listen for commands from user
         final commands_listener commands_listener_thread=new commands_listener();
         commands_listener_thread.start();
         
+        //TODO polling rate is really high, eats up cpu. Lower somehow.
         pcap.loop(Pcap.LOOP_INFINITE, new JBufferHandler<Object>() {  
         	  
             /** 
@@ -95,26 +123,40 @@ public class watchdog_main {
             public void nextPacket(PcapHeader header, JBuffer buffer, Object user) {  
             	packet.peerAndScan(Ethernet.ID, header, buffer);  
             	
-            	HashMap<String,String> packetinfo = new HashMap<String,String>(4);
+            	HashMap<String,String> packetinfodebug = new HashMap<String,String>(4);
+            	String[] packetinfo = new String[2];
             	
-            	packetinfo.put("time",new Date(packet.getCaptureHeader().timestampInMillis()).toString());
+            	packetinfodebug.put("time",new Date(packet.getCaptureHeader().timestampInMillis()).toString());
             	
-            	//Check if the packet has tcp/ucp headers. If so, get it ports and ips
+            	//Check if the packet has tcp and ip headers. If so, get its ports and ips
             	if (packet.hasHeader(ip) && packet.hasHeader(tcp)){
-            		packetinfo.put("from ip",FormatUtils.ip(ip.source()));
-            		packetinfo.put("dest ip",FormatUtils.ip(ip.destination()));
-            		packetinfo.put("from port",String.valueOf(tcp.source()));
-            		packetinfo.put("dest port",String.valueOf(tcp.destination()));
+            		packetinfodebug.put("from ip",FormatUtils.ip(ip.source()));
+            		packetinfodebug.put("dest ip",FormatUtils.ip(ip.destination()));
+            		packetinfodebug.put("from port",String.valueOf(tcp.source()));
+            		packetinfodebug.put("dest port",String.valueOf(tcp.destination()));
+            		
+            		packetinfo[0]=FormatUtils.ip(ip.source())+":"+String.valueOf(tcp.source());
+            			System.out.println(packetinfo[0]);
+            		packetinfo[1]=FormatUtils.ip(ip.destination())+":"+String.valueOf(tcp.destination());
+            			System.out.println(packetinfo[1]);
             	}
             	
-            	for(String info:packetinfo.keySet()){
-            		System.out.print(info+":"+packetinfo.get(info)+"   ");
+            	/*for(String info:packetinfodebug.keySet()){
+            		System.out.print(info+":"+packetinfodebug.get(info)+"   ");
             	}
-            	System.out.println("");
+            	System.out.println("");*/
             	
             	//next we check the list of networked processes and get the one that has connections matching all 4 variables from the header
+            	//checking processes is EXTREMELY expensive, so do it once on program start, then consult the stored list
             	
+            	for(String networked_process:networked_processes){
+					if(networked_process.contains(packetinfo[0]) && networked_process.contains(packetinfo[1])){
+						//we found the process for this packet, get its pid
+						System.out.println(networked_process);
+					}
+            	}
             	
+            	//we only got the PID, so query the OS using the process ID and get the process name 
             	//if this process is steam, then we add the destination ip address (if its leaving local ip) to list of Dks2 player ips
             	
             	
