@@ -1,9 +1,12 @@
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Inet4Address;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -20,13 +23,15 @@ import org.jnetpcap.packet.format.FormatUtils;
 import org.jnetpcap.protocol.lan.Ethernet;
 import org.jnetpcap.protocol.network.Ip4;
 import org.jnetpcap.protocol.tcpip.Tcp;
+import org.jnetpcap.protocol.tcpip.Udp;
 
 
 public class watchdog_main {
 	
 	public static boolean exitloop=false;
+	private static ArrayList<String> recent_Dks2_ips = new ArrayList<String>();
 	
-	public static void main(String[] args) throws UnknownHostException {
+	public static void main(String[] args) throws IOException {
 		List<PcapIf> alldevs = new ArrayList<PcapIf>(); // Will be filled with NICs  
         StringBuilder errbuf = new StringBuilder(); // For any error msgs  
   
@@ -95,13 +100,15 @@ public class watchdog_main {
 		} catch (IOException e) {
 			System.err.println("Problem opening cmd");
 			e.printStackTrace();
+			return;
 		}
 		final String[] networked_processes=networked_processessb.toString().split("\n");
 		final String[] system_processes=system_processessb.toString().split("\n");
         
 		//find the local ip
 		final String localip=Inet4Address.getLocalHost().getHostAddress();
-		System.out.println(localip);
+		System.out.println("Your local ip address is "+localip);
+		
 		
         /*************************************************************************** 
          * We enter the loop and tell it to capture packets. The loop 
@@ -116,7 +123,8 @@ public class watchdog_main {
         final commands_listener commands_listener_thread=new commands_listener();
         commands_listener_thread.start();
         
-        //TODO polling rate is really high, eats up cpu. Lower somehow.
+        final BufferedWriter out = new BufferedWriter(new FileWriter("dump.txt"));
+        
         pcap.loop(Pcap.LOOP_INFINITE, new JBufferHandler<Object>() {  
         	  
             /** 
@@ -126,11 +134,12 @@ public class watchdog_main {
              * resources to allocate it per every dispatch of a packet. We mark it 
              * final since we do not plan on allocating any other instances of them. 
              */  
-            final Tcp tcp = new Tcp();  
+            final Udp udp = new Udp();  
             final PcapPacket packet = new PcapPacket(JMemory.POINTER);  
             final Ip4 ip = new Ip4();  
             
             //main work here. We want to scan each incoming packet, and check the process its attached to.
+            //TODO any way to work convo_id into this?
             public void nextPacket(PcapHeader header, JBuffer buffer, Object user) {  
             	packet.peerAndScan(Ethernet.ID, header, buffer);  
             	
@@ -138,58 +147,75 @@ public class watchdog_main {
             	
             	packetinfo[0]=new Date(packet.getCaptureHeader().timestampInMillis()).toString();
             	
-            	//Check if the packet has tcp and ip headers. If so, get its ports and ips
-            	if (packet.hasHeader(ip) && packet.hasHeader(tcp)){
-            		//packetinfodebug.put("from ip",FormatUtils.ip(ip.source()));
-            		//packetinfodebug.put("dest ip",FormatUtils.ip(ip.destination()));
-            		//packetinfodebug.put("from port",String.valueOf(tcp.source()));
-            		//packetinfodebug.put("dest port",String.valueOf(tcp.destination()));
-            		
+            	//Check if the packet has udp and ip headers. If so, get its ports and ips
+            	//Steam w/ Dark Souls 2 uses udp protocall
+            	if (packet.hasHeader(ip) && packet.hasHeader(udp)){
             		packetinfo[1]=FormatUtils.ip(ip.source());
-            		packetinfo[2]=String.valueOf(tcp.source());
+            		packetinfo[2]=String.valueOf(udp.source());
             		packetinfo[3]=FormatUtils.ip(ip.destination());
-            		packetinfo[4]=String.valueOf(tcp.destination());
-            	}
+            		packetinfo[4]=String.valueOf(udp.destination());
             	
-            	//we sucesfully got ips and ports, and the destination ip is not our local ip
-            	if(packetinfo[1]!=null && packetinfo[2]!=null && packetinfo[3]!=null && !packetinfo[3].equals(localip) && packetinfo[4]!=null){
-	            	//next we check the list of networked processes and get the one that has connections matching all 4 variables from the header
-	            	//checking processes is expensive, so do it once on program start, then consult the stored list
-	            	
-            		String PiD=null;
-            		String processname=null;
-            		
-	            	for(String networked_process:networked_processes){
-						if(networked_process.contains(packetinfo[1]+":"+packetinfo[2]) && networked_process.contains(packetinfo[3]+":"+packetinfo[4])){
-							//we found the process for this packet, get its pid
-							String[] process=networked_process.split("\\s+");
-							PiD=process[process.length-1];
-							break;
-						}
-	            	}
-	            	
-	            	//we only got the PID, so query the OS using the process ID and get the process name 
-	            	//if this process is steam, then we add the destination ip address (if its leaving local ip) to list of Dks2 player ips
-	            	if(PiD!=null){
-		            	for(String process:system_processes){
-		            		if(process.contains(PiD)){
-		            			int endposition = 0;
-		            			Pattern p = Pattern.compile("\\s+");
-		            			Matcher m = p.matcher(process);
-		            			if (m.find()) {endposition = m.start();}
-		            			
-		            			processname=process.substring(0,endposition);
+	            	//we sucesfully got ips and ports, and we are the origin ip for the packet
+	            	if(packetinfo[1].equals(localip)){
+	            			System.out.println(Arrays.toString(packetinfo));
+	            			try {
+								out.write(Arrays.toString(packetinfo)+"\n");
+							} catch (IOException e) {
+								e.printStackTrace();
+							}
+		            	//next we check the list of networked processes and get the one that has connections matching all 4 variables from the header
+		            	//checking processes is expensive, so do it once on program start, then consult the stored list
+		            	//TODO this isnt working w/ steam
+	            		String PiD=null;
+	            		String processname=null;
+	            		
+		            	for(String networked_process:networked_processes){
+							if(networked_process.contains(packetinfo[1]+":"+packetinfo[2]) && networked_process.contains(packetinfo[3]+":"+packetinfo[4])){
+								//we found the process for this packet, get its pid
+								String[] process=networked_process.split("\\s+");
+								PiD=process[process.length-1];
 								break;
-		            		}
+							}
 		            	}
-	            	
-		            	System.out.println("found ip adress "+packetinfo[3]+" from process "+processname);
+		            	
+		            	//we only got the PID, so query the OS using the process ID and get the process name 
+		            	if(PiD!=null){
+			            	for(String process:system_processes){
+			            		if(process.contains(PiD)){
+			            			int endposition = 0;
+			            			Pattern p = Pattern.compile("\\s+");
+			            			Matcher m = p.matcher(process);
+			            			if (m.find()) {endposition = m.start();}
+			            			
+			            			processname=process.substring(0,endposition);
+									break;
+			            		}
+			            	}
+		            	
+			            	System.out.println("found ip adress "+packetinfo[3]+" from process "+processname);
+			            	try {
+								out.write("found ip adress "+packetinfo[3]+" from process "+processname+"\n");
+							} catch (IOException e) {
+								e.printStackTrace();
+							}
+			            	
+			            	//if this process is steam, then we add the destination ip address (if its leaving local ip) to list of Dks2 player ips
+			            	if(processname.equals("Steam.exe")){
+			            		recent_Dks2_ips.add(packetinfo[3]);
+			            		System.out.println("added Dks2 ip "+packetinfo[3]);
+			            	}
+		            	}
 	            	}
             	}
             	
             	//to exit loop
             	if (exitloop) {
             		System.out.println("stopping");
+            		try {
+						out.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
             		commands_listener_thread.listening=false;
             		pcap.breakloop();
             	}
