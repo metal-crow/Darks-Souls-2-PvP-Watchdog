@@ -1,6 +1,8 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.Inet4Address;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -24,7 +26,7 @@ public class watchdog_main {
 	
 	public static boolean exitloop=false;
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws UnknownHostException {
 		List<PcapIf> alldevs = new ArrayList<PcapIf>(); // Will be filled with NICs  
         StringBuilder errbuf = new StringBuilder(); // For any error msgs  
   
@@ -97,6 +99,10 @@ public class watchdog_main {
 		final String[] networked_processes=networked_processessb.toString().split("\n");
 		final String[] system_processes=system_processessb.toString().split("\n");
         
+		//find the local ip
+		final String localip=Inet4Address.getLocalHost().getHostAddress();
+		System.out.println(localip);
+		
         /*************************************************************************** 
          * We enter the loop and tell it to capture packets. The loop 
          * method does a mapping of pcap.datalink() DLT value to JProtocol ID, which 
@@ -145,8 +151,8 @@ public class watchdog_main {
             		packetinfo[4]=String.valueOf(tcp.destination());
             	}
             	
-            	//we sucesfully got ips and ports
-            	if(packetinfo[1]!=null && packetinfo[2]!=null && packetinfo[3]!=null && packetinfo[4]!=null){
+            	//we sucesfully got ips and ports, and the destination ip is not our local ip
+            	if(packetinfo[1]!=null && packetinfo[2]!=null && packetinfo[3]!=null && !packetinfo[3].equals(localip) && packetinfo[4]!=null){
 	            	//next we check the list of networked processes and get the one that has connections matching all 4 variables from the header
 	            	//checking processes is expensive, so do it once on program start, then consult the stored list
 	            	
@@ -164,19 +170,21 @@ public class watchdog_main {
 	            	
 	            	//we only got the PID, so query the OS using the process ID and get the process name 
 	            	//if this process is steam, then we add the destination ip address (if its leaving local ip) to list of Dks2 player ips
-	            	for(String process:system_processes){
-	            		if(process.contains(PiD)){
-	            			int endposition = 0;
-	            			Pattern p = Pattern.compile("\\s+");
-	            			Matcher m = p.matcher(process);
-	            			if (m.find()) {endposition = m.start();}
-	            			
-	            			processname=process.substring(0,endposition);
-							break;
-	            		}
-	            	}
+	            	if(PiD!=null){
+		            	for(String process:system_processes){
+		            		if(process.contains(PiD)){
+		            			int endposition = 0;
+		            			Pattern p = Pattern.compile("\\s+");
+		            			Matcher m = p.matcher(process);
+		            			if (m.find()) {endposition = m.start();}
+		            			
+		            			processname=process.substring(0,endposition);
+								break;
+		            		}
+		            	}
 	            	
-	            	System.out.println("found ip adress "+packetinfo[3]+" from process "+processname);
+		            	System.out.println("found ip adress "+packetinfo[3]+" from process "+processname);
+	            	}
             	}
             	
             	//to exit loop
