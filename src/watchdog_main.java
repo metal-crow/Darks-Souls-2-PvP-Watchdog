@@ -2,7 +2,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Scanner;
 
 import org.jnetpcap.JBufferHandler;
 import org.jnetpcap.Pcap;
@@ -10,19 +9,10 @@ import org.jnetpcap.PcapHeader;
 import org.jnetpcap.PcapIf;
 import org.jnetpcap.nio.JBuffer;
 import org.jnetpcap.nio.JMemory;
-import org.jnetpcap.packet.JHeader;
-import org.jnetpcap.packet.JHeaderPool;
-import org.jnetpcap.packet.JPacket;
-import org.jnetpcap.packet.JPacketHandler;
 import org.jnetpcap.packet.PcapPacket;
-import org.jnetpcap.packet.PcapPacketHandler;
-import org.jnetpcap.packet.annotate.Header;
 import org.jnetpcap.packet.format.FormatUtils;
-import org.jnetpcap.packet.structure.AnnotatedHeader;
-import org.jnetpcap.packet.structure.JField;
 import org.jnetpcap.protocol.lan.Ethernet;
 import org.jnetpcap.protocol.network.Ip4;
-import org.jnetpcap.protocol.tcpip.Http;
 import org.jnetpcap.protocol.tcpip.Tcp;
 
 
@@ -101,10 +91,7 @@ public class watchdog_main {
             final PcapPacket packet = new PcapPacket(JMemory.POINTER);  
             final Ip4 ip = new Ip4();  
             
-            /*main work here. We want to scan each incoming packet, and check the process its attached to.
-             * If its steam, check if its a tcp/ucp packet, and is leaving the local ip.
-             * If so, add it to a global buffer of ips along with its capture time. Its a Dks2 user ip.
-             * also, use convo_id*/
+            //main work here. We want to scan each incoming packet, and check the process its attached to.
             public void nextPacket(PcapHeader header, JBuffer buffer, Object user) {  
             	packet.peerAndScan(Ethernet.ID, header, buffer);  
             	
@@ -112,6 +99,7 @@ public class watchdog_main {
             	
             	packetinfo.put("time",new Date(packet.getCaptureHeader().timestampInMillis()).toString());
             	
+            	//Check if the packet has tcp/ucp headers. If so, get it ports and ips
             	if (packet.hasHeader(ip) && packet.hasHeader(tcp)){
             		packetinfo.put("from ip",FormatUtils.ip(ip.source()));
             		packetinfo.put("dest ip",FormatUtils.ip(ip.destination()));
@@ -123,6 +111,12 @@ public class watchdog_main {
             		System.out.print(info+":"+packetinfo.get(info)+"   ");
             	}
             	System.out.println("");
+            	
+            	//next we check the list of networked processes and get the one that has connections matching all 4 variables from the header
+            	
+            	
+            	//if this process is steam, then we add the destination ip address (if its leaving local ip) to list of Dks2 player ips
+            	
             	
             	//to exit loop
             	if (exitloop) {
