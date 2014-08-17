@@ -149,11 +149,11 @@ public class watchdog_main {
 	            	//we sucesfully got ips and ports, and we are the origin ip for the packet
 	            	if(packetinfo[1].equals(localip)){
 	            			//System.out.println(Arrays.toString(packetinfo));
-	            			try {
+	            			/*try {
 								out.write(Arrays.toString(packetinfo)+"\n");
 							} catch (IOException e) {
 								e.printStackTrace();
-							}
+							}*/
 	            		try{
 			            	//next we check the list of networked processes and get the one that has connections matching all 4 variables from the header
 			            	//checking processes is expensive, so do it once on program start, then consult the stored list
@@ -187,11 +187,11 @@ public class watchdog_main {
 				            		}
 				            	}
 			            	
-				            	try {
+				            	/*try {
 									out.write("found ip adress "+packetinfo[3]+" from process "+processname+"\n");
 								} catch (IOException e) {
 									e.printStackTrace();
-								}
+								}*/
 				            	
 				            	//if this process is steam, then we add the destination ip address (if its leaving local ip) to list of Dks2 player ips
 				            	if(processname.equals("Steam.exe")){
@@ -208,13 +208,13 @@ public class watchdog_main {
             	//to exit loop
             	if (exitloop) {
             		System.out.println("stopping");
-            		try {
+            		/*try {
 						out.close();
             			outcmd.write(packetinfo[0]+" "+Arrays.toString(get_networked_processes())+"\n");
 						outcmd.close();
 					} catch (IOException e) {
 						e.printStackTrace();
-					}
+					}*/
             		commands_listener_thread.listening=false;
             		pcap.breakloop();
             	}
