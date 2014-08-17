@@ -140,14 +140,15 @@ public class watchdog_main {
             	
             	//Check if the packet has udp and ip headers. If so, get its ports and ips
             	//Steam w/ Dark Souls 2 uses udp protocol
+            	//if its payload is a Binary Large Object, then this is the correct ip for the user, as this means we're sending player info to this ip
             	if (packet.hasHeader(ip) && packet.hasHeader(udp)){
             		packetinfo[1]=FormatUtils.ip(ip.source());
             		packetinfo[2]=String.valueOf(udp.source());
             		packetinfo[3]=FormatUtils.ip(ip.destination());
             		packetinfo[4]=String.valueOf(udp.destination());
             	
-	            	//we sucesfully got ips and ports, and we are the origin ip for the packet
-	            	if(packetinfo[1].equals(localip)){
+	            	//we sucesfully got ips and ports, and we are the origin ip for the packet, plus the destination ip has'nt been already added
+	            	if(packetinfo[1].equals(localip) && !recent_Dks2_ips.contains(packetinfo[3])){
 	            			//System.out.println(Arrays.toString(packetinfo));
 	            			/*try {
 								out.write(Arrays.toString(packetinfo)+"\n");
