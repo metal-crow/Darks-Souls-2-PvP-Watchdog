@@ -4,7 +4,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Inet4Address;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -22,7 +21,6 @@ import org.jnetpcap.packet.PcapPacket;
 import org.jnetpcap.packet.format.FormatUtils;
 import org.jnetpcap.protocol.lan.Ethernet;
 import org.jnetpcap.protocol.network.Ip4;
-import org.jnetpcap.protocol.tcpip.Tcp;
 import org.jnetpcap.protocol.tcpip.Udp;
 
 
@@ -79,20 +77,12 @@ public class watchdog_main {
         
         //pre-build library for networked processes and process names
     	//TODO i dont know if theres a better way/library of doing this, so for know im just going to run a cmd command and parse the text
-    	StringBuffer networked_processessb=new StringBuffer();
     	StringBuffer system_processessb=new StringBuffer();
 		try {
-			//get list of all networked processes
-			Process p = Runtime.getRuntime().exec("netstat -aon");
-			BufferedReader commandoutput = new BufferedReader(new InputStreamReader(p.getInputStream()));
-			String line = null;  
-            while ((line = commandoutput.readLine()) != null) {  
-            	networked_processessb.append(line.trim()+"\n");
-            }
             //get list of process names with their Pid
-            p = Runtime.getRuntime().exec("tasklist");
-            commandoutput = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            line = null;  
+            Process p = Runtime.getRuntime().exec("tasklist");
+            BufferedReader commandoutput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line = null;  
             while ((line = commandoutput.readLine()) != null) {  
             	system_processessb.append(line.trim()+"\n");
             }
@@ -102,7 +92,6 @@ public class watchdog_main {
 			e.printStackTrace();
 			return;
 		}
-		final String[] networked_processes=networked_processessb.toString().split("\n");
 		final String[] system_processes=system_processessb.toString().split("\n");
         
 		//find the local ip
@@ -124,6 +113,8 @@ public class watchdog_main {
         commands_listener_thread.start();
         
         final BufferedWriter out = new BufferedWriter(new FileWriter("dump.txt"));
+        final BufferedWriter outcmd = new BufferedWriter(new FileWriter("dumpcmd.txt"));
+		outcmd.write(Arrays.toString(get_networked_processes())+"\n");
         
         pcap.loop(Pcap.LOOP_INFINITE, new JBufferHandler<Object>() {  
         	  
@@ -148,7 +139,7 @@ public class watchdog_main {
             	packetinfo[0]=new Date(packet.getCaptureHeader().timestampInMillis()).toString();
             	
             	//Check if the packet has udp and ip headers. If so, get its ports and ips
-            	//Steam w/ Dark Souls 2 uses udp protocall
+            	//Steam w/ Dark Souls 2 uses udp protocol
             	if (packet.hasHeader(ip) && packet.hasHeader(udp)){
             		packetinfo[1]=FormatUtils.ip(ip.source());
             		packetinfo[2]=String.valueOf(udp.source());
@@ -157,54 +148,60 @@ public class watchdog_main {
             	
 	            	//we sucesfully got ips and ports, and we are the origin ip for the packet
 	            	if(packetinfo[1].equals(localip)){
-	            			System.out.println(Arrays.toString(packetinfo));
+	            			//System.out.println(Arrays.toString(packetinfo));
 	            			try {
 								out.write(Arrays.toString(packetinfo)+"\n");
 							} catch (IOException e) {
 								e.printStackTrace();
 							}
-		            	//next we check the list of networked processes and get the one that has connections matching all 4 variables from the header
-		            	//checking processes is expensive, so do it once on program start, then consult the stored list
-		            	//TODO this isnt working w/ steam
-	            		String PiD=null;
-	            		String processname=null;
-	            		
-		            	for(String networked_process:networked_processes){
-							if(networked_process.contains(packetinfo[1]+":"+packetinfo[2]) && networked_process.contains(packetinfo[3]+":"+packetinfo[4])){
-								//we found the process for this packet, get its pid
-								String[] process=networked_process.split("\\s+");
-								PiD=process[process.length-1];
-								break;
-							}
-		            	}
-		            	
-		            	//we only got the PID, so query the OS using the process ID and get the process name 
-		            	if(PiD!=null){
-			            	for(String process:system_processes){
-			            		if(process.contains(PiD)){
-			            			int endposition = 0;
-			            			Pattern p = Pattern.compile("\\s+");
-			            			Matcher m = p.matcher(process);
-			            			if (m.find()) {endposition = m.start();}
-			            			
-			            			processname=process.substring(0,endposition);
+	            		try{
+			            	//next we check the list of networked processes and get the one that has connections matching all 4 variables from the header
+			            	//checking processes is expensive, so do it once on program start, then consult the stored list
+		            		String PiD=null;
+		            		String processname=null;
+		            		
+		            		//i think we have to get list of networked processes every packet, as the connection is short-lived
+		            		String[] networked_processes=get_networked_processes();
+		            		
+			            	for(String networked_process:networked_processes){
+			            		//for these connections, it appears steam does it in LOCALIP:LOCALPORT *:* format, so forget checking the destination ip and port
+								if(networked_process.contains(packetinfo[1]+":"+packetinfo[2]) /*&& networked_process.contains(packetinfo[3]+":"+packetinfo[4])*/){
+									//we found the process for this packet, get its pid
+									String[] process=networked_process.split("\\s+");
+									PiD=process[process.length-1];
 									break;
-			            		}
+								}
 			            	}
-		            	
-			            	System.out.println("found ip adress "+packetinfo[3]+" from process "+processname);
-			            	try {
-								out.write("found ip adress "+packetinfo[3]+" from process "+processname+"\n");
-							} catch (IOException e) {
-								e.printStackTrace();
-							}
 			            	
-			            	//if this process is steam, then we add the destination ip address (if its leaving local ip) to list of Dks2 player ips
-			            	if(processname.equals("Steam.exe")){
-			            		recent_Dks2_ips.add(packetinfo[3]);
-			            		System.out.println("added Dks2 ip "+packetinfo[3]);
+			            	//we only got the PID, so query the OS using the process ID and get the process name 
+			            	if(PiD!=null){
+				            	for(String process:system_processes){
+				            		if(process.contains(PiD)){
+				            			int endposition = 0;
+				            			Pattern p = Pattern.compile("\\s+");
+				            			Matcher m = p.matcher(process);
+				            			if (m.find()) {endposition = m.start();}
+				            			
+				            			processname=process.substring(0,endposition);
+										break;
+				            		}
+				            	}
+			            	
+				            	try {
+									out.write("found ip adress "+packetinfo[3]+" from process "+processname+"\n");
+								} catch (IOException e) {
+									e.printStackTrace();
+								}
+				            	
+				            	//if this process is steam, then we add the destination ip address (if its leaving local ip) to list of Dks2 player ips
+				            	if(processname.equals("Steam.exe")){
+				            		recent_Dks2_ips.add(packetinfo[3]);
+				            		System.out.println("added Dks2 ip "+packetinfo[3]);
+				            	}
 			            	}
-		            	}
+	            		}catch(IOException e){
+	            			System.err.println("Unable to get list of all networked processes for this packet");
+        				}
 	            	}
             	}
             	
@@ -213,6 +210,8 @@ public class watchdog_main {
             		System.out.println("stopping");
             		try {
 						out.close();
+            			outcmd.write(packetinfo[0]+" "+Arrays.toString(get_networked_processes())+"\n");
+						outcmd.close();
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -230,4 +229,15 @@ public class watchdog_main {
 
 	}
 
+	//get list of all networked processes
+	public static String[] get_networked_processes() throws IOException{
+    	StringBuffer networked_processessb=new StringBuffer();
+		Process p = Runtime.getRuntime().exec("netstat -aon");
+		BufferedReader commandoutput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+		String line = null;  
+        while ((line = commandoutput.readLine()) != null) {  
+        	networked_processessb.append(line.trim()+"\n");
+        }
+		return networked_processessb.toString().split("\n");
+	}
 }
