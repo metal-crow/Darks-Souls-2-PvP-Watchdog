@@ -10,15 +10,15 @@ public class commands_listener extends Thread{
 	 * or to get the most recent ip and block it
 	 */
 	public void run() {
-		System.out.println("Press e to exit");
+		System.out.println("Type \"exit\" to exit, \"block\" to block last user");
         Scanner in = new Scanner(System.in);
         while(listening){
         	String user=in.next();
-        	if(user.toLowerCase().equals("e")){
+        	if(user.toLowerCase().equals("exit")){
         		watchdog_main.exitloop=true;
         	}
-        	else{
-        		watchdog_main.exitloop=false;
+        	if(user.toLowerCase().equals("block")){
+        		watchdog_main.toblock=true;
         	}
         }
         in.close();

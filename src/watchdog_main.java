@@ -17,6 +17,7 @@ import org.jnetpcap.PcapHeader;
 import org.jnetpcap.PcapIf;
 import org.jnetpcap.nio.JBuffer;
 import org.jnetpcap.nio.JMemory;
+import org.jnetpcap.packet.Payload;
 import org.jnetpcap.packet.PcapPacket;
 import org.jnetpcap.packet.format.FormatUtils;
 import org.jnetpcap.protocol.lan.Ethernet;
@@ -27,6 +28,8 @@ import org.jnetpcap.protocol.tcpip.Udp;
 public class watchdog_main {
 	
 	public static boolean exitloop=false;
+	public static boolean toblock=false;
+	
 	private static ArrayList<String> recent_Dks2_ips = new ArrayList<String>();
 	
 	public static void main(String[] args) throws IOException {
@@ -112,9 +115,9 @@ public class watchdog_main {
         final commands_listener commands_listener_thread=new commands_listener();
         commands_listener_thread.start();
         
-        final BufferedWriter out = new BufferedWriter(new FileWriter("dump.txt"));
-        final BufferedWriter outcmd = new BufferedWriter(new FileWriter("dumpcmd.txt"));
-		outcmd.write(Arrays.toString(get_networked_processes())+"\n");
+        //final BufferedWriter out = new BufferedWriter(new FileWriter("dump.txt"));
+        //final BufferedWriter outcmd = new BufferedWriter(new FileWriter("dumpcmd.txt"));
+		//outcmd.write(Arrays.toString(get_networked_processes())+"\n");
         
         pcap.loop(Pcap.LOOP_INFINITE, new JBufferHandler<Object>() {  
         	  
@@ -140,13 +143,16 @@ public class watchdog_main {
             	
             	//Check if the packet has udp and ip headers. If so, get its ports and ips
             	//Steam w/ Dark Souls 2 uses udp protocol
-            	//if its payload is a Binary Large Object, then this is the correct ip for the user, as this means we're sending player info to this ip
             	if (packet.hasHeader(ip) && packet.hasHeader(udp)){
             		packetinfo[1]=FormatUtils.ip(ip.source());
             		packetinfo[2]=String.valueOf(udp.source());
             		packetinfo[3]=FormatUtils.ip(ip.destination());
             		packetinfo[4]=String.valueOf(udp.destination());
-            	
+            		
+                	//if its payload is a Binary Large Object, then this is the correct ip for the user, as this means we're sending player info to this ip
+            		JBuffer storage = new JBuffer(JMemory.Type.POINTER);
+            		JBuffer payload = udp.peerPayloadTo(storage);
+            		
 	            	//we sucesfully got ips and ports, and we are the origin ip for the packet, plus the destination ip has'nt been already added
 	            	if(packetinfo[1].equals(localip) && !recent_Dks2_ips.contains(packetinfo[3])){
 	            			//System.out.println(Arrays.toString(packetinfo));
@@ -218,6 +224,12 @@ public class watchdog_main {
 					}*/
             		commands_listener_thread.listening=false;
             		pcap.breakloop();
+            	}
+            	
+            	//to block user
+            	if(toblock){
+            		System.out.println("blocked user "+recent_Dks2_ips.get(recent_Dks2_ips.size()-1));
+            		toblock=false;
             	}
             }
   
