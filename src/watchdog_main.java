@@ -297,22 +297,28 @@ public class watchdog_main {
 		
     	//we have to block an ip range (more testing needed for exact range), so make the range (try to make it as small as possible)
 		int last_ip_number = Integer.parseInt(user_ip[user_ip.length-1]);
-		String ip = "";
-		for(int i=-1;i<=0;i++){
+		StringBuilder ip = new StringBuilder();
+		for(int i=0;i<2;i++){
 			for(int j=0;j<user_ip.length-2;j++){
-				ip+=user_ip[j]+".";
+				ip.append(user_ip[j]+".");
 			}
-			ip+=(last_ip_number+i*ip_range_block)+"-";
+			if(i==0){
+				ip.append((last_ip_number-ip_range_block)+"-");
+			}
+			else{
+				ip.append((last_ip_number+ip_range_block));
+			}
 		}
-		block_list.write(ip);
+		block_list.write(ip.toString());
 		block_list.close();
 		
-		blocked_Dks2_ips.add(ip);
+		blocked_Dks2_ips.add(ip.toString());
 		
 		//2:take the block list and add the ips to windows firewall
-			
+		//TODO THIS NEED TO RUN AS ADMINISTRATOR
+		Runtime rt = Runtime.getRuntime();
 		//first delete old rule
-		Runtime.getRuntime().exec("netsh advfirewall firewall delete rule name=Dark_Souls_2_Blocks");
+		rt.exec("netsh advfirewall firewall delete rule name=Dark_Souls_2_Blocks");
 			
 		//make list of blocked ips cmd friendly
 		StringBuilder cmd_ip_listsb= new StringBuilder();
@@ -324,14 +330,14 @@ public class watchdog_main {
 		
 		//TODO find steam.exe path. I need to ask the user on startup their steam.exe location. Also, save that info
 		//create the rule blocking the ips
-		Runtime.getRuntime().exec("netsh advfirewall firewall add rule "
+		rt.exec("netsh advfirewall firewall add rule "
 				+ "name=Dark_Souls_2_Blocks "
 				+ "protocol=any "
 				+ "dir=in "
 				+ "action=block "
 				+ "enable=yes "
 				+ "remoteip="+cmd_ip_list);
-		Runtime.getRuntime().exec("netsh advfirewall firewall add rule "
+		rt.exec("netsh advfirewall firewall add rule "
 				+ "name=Dark_Souls_2_Blocks "
 				+ "protocol=any "
 				+ "dir=out "
