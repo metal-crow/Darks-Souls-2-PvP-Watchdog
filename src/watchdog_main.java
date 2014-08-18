@@ -302,10 +302,19 @@ public class watchdog_main {
 			}
 			//block ip range by +-5
 			if(i==0){
-				ip.append((last_ip_number-5)+"-");
-			}
-			else{
-				ip.append((last_ip_number+5));
+				int range=last_ip_number-15;
+				if(range<0){
+					ip.append("0"+"-");
+				}else{
+					ip.append(range+"-");
+				}
+			}else{
+				int range=last_ip_number+15;
+				if(range>255){
+					ip.append("255");
+				}else{
+					ip.append(range);
+				}
 			}
 		}
 		block_list.write(ip.toString());
@@ -315,9 +324,9 @@ public class watchdog_main {
 		
 		//2:take the block list and add the ips to windows firewall
 		//this need to run as administrator, and will fail if java doesnt start with admin power
-		Runtime rt = Runtime.getRuntime();
-		//first delete old rule
-		rt.exec("netsh advfirewall firewall delete rule name=Dark_Souls_2_Blocks");
+		//first delete old rules
+		Runtime.getRuntime().exec("netsh advfirewall firewall delete rule name=Dark_Souls_2_Blocks_out");
+		Runtime.getRuntime().exec("netsh advfirewall firewall delete rule name=Dark_Souls_2_Blocks_in");
 			
 		//make list of blocked ips cmd friendly
 		StringBuilder cmd_ip_listsb= new StringBuilder();
@@ -329,25 +338,19 @@ public class watchdog_main {
 		
 		//TODO find steam.exe path. I need to ask the user on startup their steam.exe location. Also, save that info
 		//create the rule blocking the ips
-		rt.exec("netsh advfirewall firewall add rule "
-				+ "name=Dark_Souls_2_Blocks "
-				+ "protocol=any "
-				+ "dir=in "
-				+ "action=block "
-				+ "enable=yes "
-				+ "remoteip="+cmd_ip_list);
-		Process p = rt.exec("netsh advfirewall firewall add rule "
-				+ "name=Dark_Souls_2_Blocks "
+		Runtime.getRuntime().exec("netsh advfirewall firewall add rule "
+					+ "name=Dark_Souls_2_Blocks_in "
+					+ "protocol=any "
+					+ "dir=in "
+					+ "action=block "
+					+ "enable=yes "
+					+ "remoteip="+cmd_ip_list);
+		Runtime.getRuntime().exec("netsh advfirewall firewall add rule "
+				+ "name=Dark_Souls_2_Blocks_out "
 				+ "protocol=any "
 				+ "dir=out "
 				+ "action=block "
 				+ "enable=yes "
 				+ "remoteip="+cmd_ip_list);
-		
-		BufferedReader commandoutput = new BufferedReader(new InputStreamReader(p.getInputStream()));
-        String line = null;  
-        while ((line = commandoutput.readLine()) != null) {  
-        	System.out.print(line.trim()+"\n");
-        }
 	}
 }
