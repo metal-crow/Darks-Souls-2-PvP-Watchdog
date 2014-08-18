@@ -1,4 +1,8 @@
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Inet4Address;
@@ -29,8 +33,24 @@ public class watchdog_main {
 	public static commands_listener commands_listener_thread=new commands_listener();
 	
 	private static ArrayList<String> recent_Dks2_ips = new ArrayList<String>();
+	private static ArrayList<String> blocked_Dks2_ips = new ArrayList<String>();
+	
+	//block ip range by +-5
+	private static int ip_range_block=5;
 	
 	public static void main(String[] args) throws IOException {
+		
+		//first see if their is already a block list. if so, load it.
+		File blocklist = new File("block.txt");
+		if(blocklist.exists()){
+			BufferedReader blockin = new BufferedReader(new FileReader("block.txt"));
+			String line="";
+			while ((line = blockin.readLine()) != null) {  
+				blocked_Dks2_ips.add(line);
+			}
+			blockin.close();
+		}
+		
 		List<PcapIf> alldevs = new ArrayList<PcapIf>(); // Will be filled with NICs  
         StringBuilder errbuf = new StringBuilder(); // For any error msgs  
   
@@ -197,7 +217,6 @@ public class watchdog_main {
 								}*/
 				            	if(processname!=null){
 					            	//if this process is steam, then we add the destination ip address (if its leaving local ip) to list of Dks2 player ips
-				            		//TODO until i fix the packet payload detection, the last recived ip is the correct one for the user
 					            	if(processname.equals("Steam.exe")){
 					            		recent_Dks2_ips.add(packetinfo[3]);
 					            		//System.out.println(packet.getState().toDebugString());
@@ -232,9 +251,16 @@ public class watchdog_main {
             	}
             	
             	//to block user
-            	//TODO make this work
+            	//TODO until i fix the packet payload detection, the last recived ip is the correct one for the user
             	if(toblock){
-            		System.out.println("blocked user "+recent_Dks2_ips.get(recent_Dks2_ips.size()-1));
+            		String user_ip = recent_Dks2_ips.get(recent_Dks2_ips.size()-1);
+            		try {
+						block_user(user_ip.split("."));
+						System.out.println("blocked user "+user_ip);
+					} catch (IOException e) {
+						System.out.println("error blocking user");
+						e.printStackTrace();
+					}
             		toblock=false;
             	}
             }
@@ -258,5 +284,59 @@ public class watchdog_main {
         	networked_processessb.append(line.trim()+"\n");
         }
 		return networked_processessb.toString().split("\n");
+	}
+	
+	public static void block_user(String[] user_ip) throws IOException{
+		//1:write block list to text
+		BufferedWriter block_list = new BufferedWriter(new FileWriter("block.txt"));
+		//rewrite the stored block list
+		for(String blocked_ip:blocked_Dks2_ips){
+			block_list.write(blocked_ip);
+			block_list.newLine();
+		}
+		
+    	//we have to block an ip range (more testing needed for exact range), so make the range (try to make it as small as possible)
+		int last_ip_number = Integer.parseInt(user_ip[user_ip.length-1]);
+		String ip = "";
+		for(int i=-1;i<=0;i++){
+			for(int j=0;j<user_ip.length-2;j++){
+				ip+=user_ip[j]+".";
+			}
+			ip+=(last_ip_number+i*ip_range_block)+"-";
+		}
+		block_list.write(ip);
+		block_list.close();
+		
+		blocked_Dks2_ips.add(ip);
+		
+		//2:take the block list and add the ips to windows firewall
+			
+		//first delete old rule
+		Runtime.getRuntime().exec("netsh advfirewall firewall delete rule name=Dark_Souls_2_Blocks");
+			
+		//make list of blocked ips cmd friendly
+		StringBuilder cmd_ip_listsb= new StringBuilder();
+		for(String bip:blocked_Dks2_ips){
+			cmd_ip_listsb.append(bip+",");
+		}
+		String cmd_ip_list=cmd_ip_listsb.toString();
+			System.out.println(cmd_ip_list);
+		
+		//TODO find steam.exe path. I need to ask the user on startup their steam.exe location. Also, save that info
+		//create the rule blocking the ips
+		Runtime.getRuntime().exec("netsh advfirewall firewall add rule "
+				+ "name=Dark_Souls_2_Blocks "
+				+ "protocol=any "
+				+ "dir=in "
+				+ "action=block "
+				+ "enable=yes "
+				+ "remoteip="+cmd_ip_list);
+		Runtime.getRuntime().exec("netsh advfirewall firewall add rule "
+				+ "name=Dark_Souls_2_Blocks "
+				+ "protocol=any "
+				+ "dir=out "
+				+ "action=block "
+				+ "enable=yes "
+				+ "remoteip="+cmd_ip_list);
 	}
 }
