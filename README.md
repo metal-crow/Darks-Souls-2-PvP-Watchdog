@@ -8,5 +8,5 @@ Run this program anytime you want, you dont NEED to run it any particular time b
 Requires the Winpcap driver for windows to be installed. http://www.winpcap.org/default.htm
 Written using the jNetPcap java wrapper library.
 
-Currently very much a beta.
+Currently very much an alpha.
 Also, i have no clue how to use jNetPcap, so this will probably look awful if you do.

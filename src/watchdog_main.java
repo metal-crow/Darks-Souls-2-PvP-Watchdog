@@ -26,6 +26,7 @@ public class watchdog_main {
 	
 	public static boolean exitloop=false;
 	public static boolean toblock=false;
+	public static commands_listener commands_listener_thread=new commands_listener();
 	
 	private static ArrayList<String> recent_Dks2_ips = new ArrayList<String>();
 	
@@ -109,7 +110,6 @@ public class watchdog_main {
          **************************************************************************/  
         
         //thread to listen for commands from user
-        final commands_listener commands_listener_thread=new commands_listener();
         commands_listener_thread.start();
         
         //final BufferedWriter out = new BufferedWriter(new FileWriter("dump.txt"));
@@ -228,7 +228,6 @@ public class watchdog_main {
 					} catch (IOException e) {
 						e.printStackTrace();
 					}*/
-            		commands_listener_thread.listening=false;
             		pcap.breakloop();
             	}
             	
