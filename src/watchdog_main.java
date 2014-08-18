@@ -1,11 +1,8 @@
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Inet4Address;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -78,7 +75,7 @@ public class watchdog_main {
         }  
   
         
-        //pre-build library for networked processes and process names
+        //pre-build library for process names
     	//TODO i dont know if theres a better way/library of doing this, so for know im just going to run a cmd command and parse the text
     	StringBuffer system_processessb=new StringBuffer();
 		try {
@@ -91,7 +88,7 @@ public class watchdog_main {
             }
             
 		} catch (IOException e) {
-			System.err.println("Problem opening cmd");
+			System.err.println("Problem getting list of processes");
 			e.printStackTrace();
 			return;
 		}
@@ -131,6 +128,7 @@ public class watchdog_main {
             final Udp udp = new Udp();  
             final PcapPacket packet = new PcapPacket(JMemory.POINTER);  
             final Ip4 ip = new Ip4();  
+            final Payload basePayload = new Payload();
             
             //main work here. We want to scan each incoming packet, and check the process its attached to.
             //TODO any way to work convo_id into this?
@@ -143,17 +141,16 @@ public class watchdog_main {
             	
             	//Check if the packet has udp and ip headers. If so, get its ports and ips
             	//Steam w/ Dark Souls 2 uses udp protocol
-            	if (packet.hasHeader(ip) && packet.hasHeader(udp)){
+            	if (packet.hasHeader(ip) && packet.hasHeader(udp) && packet.hasHeader(basePayload)){
             		packetinfo[1]=FormatUtils.ip(ip.source());
             		packetinfo[2]=String.valueOf(udp.source());
             		packetinfo[3]=FormatUtils.ip(ip.destination());
             		packetinfo[4]=String.valueOf(udp.destination());
             		
-                	//if its payload is a Binary Large Object, then this is the correct ip for the user, as this means we're sending player info to this ip
-            		JBuffer storage = new JBuffer(JMemory.Type.POINTER);
-            		JBuffer payload = udp.peerPayloadTo(storage);
+                	//TODO if its payload is a Binary Large Object, then this is the correct ip for the user, as this means we're sending player info to this ip
             		
 	            	//we sucesfully got ips and ports, and we are the origin ip for the packet, plus the destination ip has'nt been already added
+            		//TODO the destination ip isnt local
 	            	if(packetinfo[1].equals(localip) && !recent_Dks2_ips.contains(packetinfo[3])){
 	            			//System.out.println(Arrays.toString(packetinfo));
 	            			/*try {
@@ -163,7 +160,6 @@ public class watchdog_main {
 							}*/
 	            		try{
 			            	//next we check the list of networked processes and get the one that has connections matching all 4 variables from the header
-			            	//checking processes is expensive, so do it once on program start, then consult the stored list
 		            		String PiD=null;
 		            		String processname=null;
 		            		
@@ -199,11 +195,21 @@ public class watchdog_main {
 								} catch (IOException e) {
 									e.printStackTrace();
 								}*/
-				            	
-				            	//if this process is steam, then we add the destination ip address (if its leaving local ip) to list of Dks2 player ips
-				            	if(processname.equals("Steam.exe")){
-				            		recent_Dks2_ips.add(packetinfo[3]);
-				            		System.out.println("added Dks2 ip "+packetinfo[3]);
+				            	if(processname!=null){
+					            	//if this process is steam, then we add the destination ip address (if its leaving local ip) to list of Dks2 player ips
+				            		//TODO until i fix the packet payload detection, the last recived ip is the correct one for the user
+					            	if(processname.equals("Steam.exe")){
+					            		recent_Dks2_ips.add(packetinfo[3]);
+					            		//System.out.println(packet.getState().toDebugString());
+					            		System.out.println("added Dks2 ip "+packetinfo[3]+" at "+packetinfo[0]);
+					            	}
+				            	}
+				            	else{
+				            		for(String process:system_processes){
+					            		if(process.contains(PiD)){
+					            			System.err.println("error getting process for Pid "+PiD+" for result "+process);
+					            		}
+				            		}
 				            	}
 			            	}
 	            		}catch(IOException e){
@@ -227,6 +233,7 @@ public class watchdog_main {
             	}
             	
             	//to block user
+            	//TODO make this work
             	if(toblock){
             		System.out.println("blocked user "+recent_Dks2_ips.get(recent_Dks2_ips.size()-1));
             		toblock=false;
