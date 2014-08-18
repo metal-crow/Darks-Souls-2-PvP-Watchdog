@@ -253,7 +253,7 @@ public class watchdog_main {
             	if(toblock){
             		String user_ip = recent_Dks2_ips.get(recent_Dks2_ips.size()-1);
             		try {
-						block_user(user_ip.split("."));
+						block_user(user_ip.split("\\."));
 						System.out.println("blocked user "+user_ip);
 					} catch (IOException e) {
 						System.out.println("error blocking user");
