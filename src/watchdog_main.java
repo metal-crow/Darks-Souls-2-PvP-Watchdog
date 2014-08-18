@@ -297,7 +297,7 @@ public class watchdog_main {
 		int last_ip_number = Integer.parseInt(user_ip[user_ip.length-1]);
 		StringBuilder ip = new StringBuilder();
 		for(int i=0;i<2;i++){
-			for(int j=0;j<user_ip.length-2;j++){
+			for(int j=0;j<user_ip.length-1;j++){
 				ip.append(user_ip[j]+".");
 			}
 			//block ip range by +-5
@@ -336,12 +336,18 @@ public class watchdog_main {
 				+ "action=block "
 				+ "enable=yes "
 				+ "remoteip="+cmd_ip_list);
-		rt.exec("netsh advfirewall firewall add rule "
+		Process p = rt.exec("netsh advfirewall firewall add rule "
 				+ "name=Dark_Souls_2_Blocks "
 				+ "protocol=any "
 				+ "dir=out "
 				+ "action=block "
 				+ "enable=yes "
 				+ "remoteip="+cmd_ip_list);
+		
+		BufferedReader commandoutput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+        String line = null;  
+        while ((line = commandoutput.readLine()) != null) {  
+        	System.out.print(line.trim()+"\n");
+        }
 	}
 }
