@@ -35,8 +35,6 @@ public class watchdog_main {
 	private static ArrayList<String> recent_Dks2_ips = new ArrayList<String>();
 	private static ArrayList<String> blocked_Dks2_ips = new ArrayList<String>();
 	
-	//block ip range by +-5
-	private static int ip_range_block=5;
 	
 	public static void main(String[] args) throws IOException {
 		
@@ -302,11 +300,12 @@ public class watchdog_main {
 			for(int j=0;j<user_ip.length-2;j++){
 				ip.append(user_ip[j]+".");
 			}
+			//block ip range by +-5
 			if(i==0){
-				ip.append((last_ip_number-ip_range_block)+"-");
+				ip.append((last_ip_number-5)+"-");
 			}
 			else{
-				ip.append((last_ip_number+ip_range_block));
+				ip.append((last_ip_number+5));
 			}
 		}
 		block_list.write(ip.toString());
@@ -315,7 +314,7 @@ public class watchdog_main {
 		blocked_Dks2_ips.add(ip.toString());
 		
 		//2:take the block list and add the ips to windows firewall
-		//TODO THIS NEED TO RUN AS ADMINISTRATOR
+		//this need to run as administrator, and will fail if java doesnt start with admin power
 		Runtime rt = Runtime.getRuntime();
 		//first delete old rule
 		rt.exec("netsh advfirewall firewall delete rule name=Dark_Souls_2_Blocks");
