@@ -35,6 +35,8 @@ public class watchdog_main {
 	private static ArrayList<String> recent_Dks2_ips = new ArrayList<String>();
 	private static ArrayList<String> blocked_Dks2_ips = new ArrayList<String>();
 	
+	private static Runtime rt=Runtime.getRuntime();
+	private static BufferedReader commandoutput;
 	
 	public static void main(String[] args) throws IOException {
 		
@@ -99,8 +101,8 @@ public class watchdog_main {
     	StringBuffer system_processessb=new StringBuffer();
 		try {
             //get list of process names with their Pid
-            Process p = Runtime.getRuntime().exec("tasklist");
-            BufferedReader commandoutput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            Process p = rt.exec("tasklist");
+            commandoutput = new BufferedReader(new InputStreamReader(p.getInputStream()));
             String line = null;  
             while ((line = commandoutput.readLine()) != null) {  
             	system_processessb.append(line.trim()+"\n");
@@ -275,8 +277,8 @@ public class watchdog_main {
 	//get list of all networked processes
 	public static String[] get_networked_processes() throws IOException{
     	StringBuffer networked_processessb=new StringBuffer();
-		Process p = Runtime.getRuntime().exec("netstat -aon");
-		BufferedReader commandoutput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+		Process p = rt.exec("netstat -aon");
+		commandoutput = new BufferedReader(new InputStreamReader(p.getInputStream()));
 		String line = null;  
         while ((line = commandoutput.readLine()) != null) {  
         	networked_processessb.append(line.trim()+"\n");
@@ -302,19 +304,19 @@ public class watchdog_main {
 			}
 			//block ip range by +-5
 			if(i==0){
-				int range=last_ip_number-15;
-				if(range<0){
+				//int range=last_ip_number-5;
+				//if(range<0){
 					ip.append("0"+"-");
-				}else{
-					ip.append(range+"-");
-				}
+				//}else{
+				//	ip.append(range+"-");
+				//}
 			}else{
-				int range=last_ip_number+15;
-				if(range>255){
+				//int range=last_ip_number+5;
+				//if(range>255){
 					ip.append("255");
-				}else{
-					ip.append(range);
-				}
+				//}else{
+				//	ip.append(range);
+				//}
 			}
 		}
 		block_list.write(ip.toString());
@@ -325,8 +327,8 @@ public class watchdog_main {
 		//2:take the block list and add the ips to windows firewall
 		//this need to run as administrator, and will fail if java doesnt start with admin power
 		//first delete old rules
-		Runtime.getRuntime().exec("netsh advfirewall firewall delete rule name=Dark_Souls_2_Blocks_out");
-		Runtime.getRuntime().exec("netsh advfirewall firewall delete rule name=Dark_Souls_2_Blocks_in");
+		rt.exec("netsh advfirewall firewall delete rule name=Dark_Souls_2_Blocks_out");
+		rt.exec("netsh advfirewall firewall delete rule name=Dark_Souls_2_Blocks_in");
 			
 		//make list of blocked ips cmd friendly
 		StringBuilder cmd_ip_listsb= new StringBuilder();
@@ -334,23 +336,33 @@ public class watchdog_main {
 			cmd_ip_listsb.append(bip+",");
 		}
 		String cmd_ip_list=cmd_ip_listsb.toString();
-			System.out.println(cmd_ip_list);
 		
 		//TODO find steam.exe path. I need to ask the user on startup their steam.exe location. Also, save that info
 		//create the rule blocking the ips
-		Runtime.getRuntime().exec("netsh advfirewall firewall add rule "
-					+ "name=Dark_Souls_2_Blocks_in "
-					+ "protocol=any "
-					+ "dir=in "
-					+ "action=block "
-					+ "enable=yes "
-					+ "remoteip="+cmd_ip_list);
-		Runtime.getRuntime().exec("netsh advfirewall firewall add rule "
+		//TODO WHY THE FUCK DOES THIS SOMETIMES JUST NOT WORK
+		Process p = rt.exec("netsh advfirewall firewall add rule "
 				+ "name=Dark_Souls_2_Blocks_out "
 				+ "protocol=any "
 				+ "dir=out "
 				+ "action=block "
 				+ "enable=yes "
 				+ "remoteip="+cmd_ip_list);
+			BufferedReader commandoutput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+	        String line = null;  
+	        while ((line = commandoutput.readLine()) != null) {  
+	        	System.out.print(line.trim()+"\n");
+	        }
+		Process l = rt.exec("netsh advfirewall firewall add rule "
+				+ "name=Dark_Souls_2_Blocks_in "
+				+ "protocol=any "
+				+ "dir=in "
+				+ "action=block "
+				+ "enable=yes "
+				+ "remoteip="+cmd_ip_list);
+			commandoutput = new BufferedReader(new InputStreamReader(l.getInputStream()));
+	        line = null;  
+	        while ((line = commandoutput.readLine()) != null) {  
+	        	System.out.print(line.trim()+"\n");
+	        }
 	}
 }
