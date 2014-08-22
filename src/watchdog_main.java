@@ -255,7 +255,7 @@ public class watchdog_main {
             	if(toblock){
             		String user_ip = recent_Dks2_ips.get(recent_Dks2_ips.size()-1);
             		try {
-						block_user(user_ip.split("\\."));
+            				block_user(user_ip.split("\\."));
 						System.out.println("blocked user "+user_ip);
 					} catch (IOException e) {
 						System.out.println("error blocking user");
@@ -274,6 +274,7 @@ public class watchdog_main {
 
 	}
 
+	
 	//get list of all networked processes
 	public static String[] get_networked_processes() throws IOException{
     	StringBuffer networked_processessb=new StringBuffer();
@@ -286,16 +287,8 @@ public class watchdog_main {
 		return networked_processessb.toString().split("\n");
 	}
 	
-	public static void block_user(String[] user_ip) throws IOException{
-		//1:write block list to text
-		BufferedWriter block_list = new BufferedWriter(new FileWriter("block.txt"));
-		//rewrite the stored block list
-		for(String blocked_ip:blocked_Dks2_ips){
-			block_list.write(blocked_ip);
-			block_list.newLine();
-		}
-		
-    	//we have to block an ip range (more testing needed for exact range), so make the range (try to make it as small as possible)
+	//we have to block an ip range (more testing needed for exact range), so make the range (try to make it as small as possible)
+	private static String get_range(String[] user_ip){
 		int last_ip_number = Integer.parseInt(user_ip[user_ip.length-1]);
 		StringBuilder ip = new StringBuilder();
 		for(int i=0;i<2;i++){
@@ -304,25 +297,39 @@ public class watchdog_main {
 			}
 			//block ip range by +-5
 			if(i==0){
-				//int range=last_ip_number-5;
-				//if(range<0){
+				int range=last_ip_number-0;
+				if(range<0){
 					ip.append("0"+"-");
-				//}else{
-				//	ip.append(range+"-");
-				//}
+				}else{
+					ip.append(range+"-");
+				}
 			}else{
-				//int range=last_ip_number+5;
-				//if(range>255){
+				int range=last_ip_number+0;
+				if(range>255){
 					ip.append("255");
-				//}else{
-				//	ip.append(range);
-				//}
+				}else{
+					ip.append(range);
+				}
 			}
 		}
-		block_list.write(ip.toString());
+		return ip.toString();
+	}
+	
+	//i have to block both the users remote it and the local ip they connect with. or something
+	public static void block_user(String[] user_ip_array) throws IOException{
+		//1:write block list to text
+		BufferedWriter block_list = new BufferedWriter(new FileWriter("block.txt"));
+		//rewrite the stored block list
+		for(String blocked_ip:blocked_Dks2_ips){
+			block_list.write(blocked_ip);
+			block_list.newLine();
+		}
+		
+		String user_ip=get_range(user_ip_array);
+		block_list.write(user_ip);
 		block_list.close();
 		
-		blocked_Dks2_ips.add(ip.toString());
+		blocked_Dks2_ips.add(user_ip);
 		
 		//2:take the block list and add the ips to windows firewall
 		//this need to run as administrator, and will fail if java doesnt start with admin power
@@ -336,10 +343,10 @@ public class watchdog_main {
 			cmd_ip_listsb.append(bip+",");
 		}
 		String cmd_ip_list=cmd_ip_listsb.toString();
-		
-		//TODO find steam.exe path. I need to ask the user on startup their steam.exe location. Also, save that info
+
+		//TODO find steam.exe path. I need to ask the user on startup their steam.exe location. Also, save that info. might not be neccicary
 		//create the rule blocking the ips
-		//TODO WHY THE FUCK DOES THIS SOMETIMES JUST NOT WORK
+		//TODO WHY THE FUCK DOES THIS SOMETIMES JUST NOT WORK (i think it doesnt work if it doesnt exist beforehand)
 		Process p = rt.exec("netsh advfirewall firewall add rule "
 				+ "name=Dark_Souls_2_Blocks_out "
 				+ "protocol=any "
