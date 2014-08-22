@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Inet4Address;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -27,13 +26,19 @@ import org.jnetpcap.protocol.network.Ip4;
 import org.jnetpcap.protocol.tcpip.Udp;
 
 
+/*Well, after weeks of work i have determined that Dark souls 2 will fall back to a dedicated server connection w/ valve's
+ * server if p2p fails. Unless I'm mistaken about this discovery, this renders this program obsolete, as blocking users 
+ * is now impossible. God help us all.
+ * HOwever, this tool CAN be used to force dedicated servers, so maybe that helps with lag? I dont know.
+ */
+
 public class watchdog_main {
 	
 	public static boolean exitloop=false;
 	public static boolean toblock=false;
 	public static commands_listener commands_listener_thread=new commands_listener();
 	
-	private static ArrayList<String[]> recent_Dks2_ips = new ArrayList<String[]>();
+	private static ArrayList<String> recent_Dks2_ips = new ArrayList<String>();
 	private static ArrayList<String> blocked_Dks2_ips = new ArrayList<String>();
 	
 	private static Runtime rt=Runtime.getRuntime();
@@ -89,7 +94,7 @@ public class watchdog_main {
   
         
         //pre-build library for process names
-    	//TODO i dont know if theres a better way/library of doing this, so for know im just going to run a cmd command and parse the text
+    	//i dont know if theres a better way/library of doing this, so for know im just going to run a cmd command and parse the text
     	StringBuffer system_processessb=new StringBuffer();
 		try {
             //get list of process names with their Pid
@@ -166,13 +171,6 @@ public class watchdog_main {
             		 * 2 the destination ip has'nt been already added, 
             		 * 3 the destination ip isnt local
             		 */
-            		boolean contains=false;
-            		for(String[] a:recent_Dks2_ips){
-            			if(a[3].equals(packetinfo[3])){// && a[2].equals(packetinfo[2]) && a[4].equals(packetinfo[4])){
-            				contains=true;
-            				break;
-            			}
-            		}
             		/* local ips are
             		10.0.0.0 - 10.255.255.255
             		172.16.0.0 - 172.31.255.255
@@ -183,7 +181,7 @@ public class watchdog_main {
             				(ip[0].equals("172") && (Integer.parseInt(ip[1])>=16 && Integer.parseInt(ip[1])<=31)) ||
             				(ip[0].equals("192") && ip[1].equals("168"));
             		
-	            	if(packetinfo[1].equals(localip) && !contains && !localdestination){
+	            	if(packetinfo[1].equals(localip) && !recent_Dks2_ips.contains(packetinfo[3]) && !localdestination){
 	            		try{
 			            	//next we check the list of networked processes and get the one that has connections matching all 4 variables from the header
 		            		String PiD=null;
@@ -194,7 +192,7 @@ public class watchdog_main {
 		            		
 			            	for(String networked_process:networked_processes){
 			            		//for these connections, it appears steam does it in LOCALIP:LOCALPORT *:* format, so forget checking the destination ip and port
-								if(networked_process.contains(packetinfo[1]+":"+packetinfo[2]) /*&& networked_process.contains(packetinfo[3]+":"+packetinfo[4])*/){
+								if(networked_process.contains(packetinfo[1]+":"+packetinfo[2])){
 									//we found the process for this packet, get its pid
 									String[] process=networked_process.split("\\s+");
 									PiD=process[process.length-1];
@@ -217,9 +215,9 @@ public class watchdog_main {
 				            	}
 			            	
 				            	if(processname!=null){
-					            	//if this process is steam, then we add the destination ip address (if its leaving local ip) to list of Dks2 player ips
+					            	//if this process is steam, then we add the destination ip address to list of Dks2 player ips
 					            	if(processname.equals("Steam.exe")){
-					            		recent_Dks2_ips.add(packetinfo);
+					            		recent_Dks2_ips.add(packetinfo[3]);
 					            		//System.out.println(packet.getState().toDebugString());
 					            		System.out.println("added Dks2 ip "+packetinfo[3]+" at "+packetinfo[0]);
 					            	}
@@ -245,11 +243,9 @@ public class watchdog_main {
             	}
             	
             	//to block user
-            	//TODO until i fix the packet payload detection, the last recived ip is the correct one for the user
+            	//the last recived ip should work as the correct one for the user ip
             	if(toblock){
-            		String user_ip = recent_Dks2_ips.get(recent_Dks2_ips.size()-1)[3];
-            		//String localport= recent_Dks2_ips.get(recent_Dks2_ips.size()-1)[2];
-            		//String remoteport= recent_Dks2_ips.get(recent_Dks2_ips.size()-1)[4];
+            		String user_ip = recent_Dks2_ips.get(recent_Dks2_ips.size()-1);
             		try {
             				block_user(user_ip.split("\\."));
 						System.out.println("blocked user "+user_ip);
@@ -278,10 +274,6 @@ public class watchdog_main {
 			BufferedReader blockin = new BufferedReader(new FileReader("block.txt"));
 			String line="";
 			while ((line = blockin.readLine()) != null) { 
-				//String[] blockinfo=new String[3];
-				//blockinfo[0]=line.substring(3,line.indexOf("LP:"));
-				//blockinfo[1]=line.substring(line.indexOf("LP:")+3,line.indexOf("RP:"));
-				//blockinfo[2]=line.substring(line.indexOf("RP:")+3);
 				blocked_Dks2_ips.add(line);
 			}
 			blockin.close();
@@ -336,21 +328,15 @@ public class watchdog_main {
 		BufferedWriter block_list = new BufferedWriter(new FileWriter("block.txt"));
 		//rewrite the stored block list
 		for(String blocked_ip:blocked_Dks2_ips){
-			//block_list.write("IP:"+blocked_ip[0]);
-			//block_list.write("LP:"+blocked_ip[1]);
-			//block_list.write("RP:"+blocked_ip[2]);
 			block_list.write(blocked_ip);
 			block_list.newLine();
 		}
 		
 		String user_ip=get_range(user_ip_array);
-		//block_list.write("IP:"+user_ip);
-		//block_list.write("LP:"+localport);
-		//block_list.write("RP:"+remoteport);
 		block_list.write(user_ip);
 		block_list.close();
 		
-		blocked_Dks2_ips.add(user_ip);//new String[]{user_ip,localport,remoteport});
+		blocked_Dks2_ips.add(user_ip);
 		
 		//2:take the block list and add the ips to windows firewall
 		//this need to run as administrator, and will fail if java doesnt start with admin power
@@ -360,18 +346,11 @@ public class watchdog_main {
 			
 		//make list of blocked ips cmd friendly
 		StringBuilder cmd_ip_listsb= new StringBuilder();
-		StringBuilder cmd_lp_listsb= new StringBuilder();
-		StringBuilder cmd_rp_listsb= new StringBuilder();
 		for(String bip:blocked_Dks2_ips){
 			cmd_ip_listsb.append(bip+",");
-			//cmd_lp_listsb.append(bip[1]+",");
-			//cmd_rp_listsb.append(bip[2]+",");
 		}
 		String cmd_ip_list=cmd_ip_listsb.toString();
-		String cmd_lp_list=cmd_lp_listsb.toString();
-		String cmd_rp_list=cmd_rp_listsb.toString();
-
-		//TODO find steam.exe path. I need to ask the user on startup their steam.exe location. Also, save that info. might not be neccicary
+		
 		//create the rule blocking the ips
 		//TODO WHY THE FUCK DOES THIS SOMETIMES JUST NOT WORK (i think it doesnt work if it doesnt exist beforehand)
 		Process p = rt.exec("netsh advfirewall firewall add rule "
@@ -380,10 +359,7 @@ public class watchdog_main {
 				+ "dir=out "
 				+ "action=block "
 				+ "enable=yes "
-				//+ "protocol=UDP "
 				+ "remoteip="+cmd_ip_list);
-				//+ "localport="+cmd_lp_list+" "
-				//+ "remoteport="+cmd_rp_list);
 			BufferedReader commandoutput = new BufferedReader(new InputStreamReader(p.getInputStream()));
 	        String line = null;  
 	        while ((line = commandoutput.readLine()) != null) {  
@@ -395,10 +371,7 @@ public class watchdog_main {
 				+ "dir=in "
 				+ "action=block "
 				+ "enable=yes "
-				//+ "protocol=UDP "
 				+ "remoteip="+cmd_ip_list);
-				//+ "localport="+cmd_lp_list+" "
-				//+ "remoteport="+cmd_rp_list);
 			commandoutput = new BufferedReader(new InputStreamReader(l.getInputStream()));
 	        line = null;  
 	        while ((line = commandoutput.readLine()) != null) {  
