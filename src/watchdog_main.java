@@ -26,11 +26,6 @@ import org.jnetpcap.protocol.network.Ip4;
 import org.jnetpcap.protocol.tcpip.Udp;
 
 
-/*Well, after weeks of work i have determined that Dark souls 2 will fall back to a dedicated server connection w/ valve's
- * server if p2p fails. Unless I'm mistaken about this discovery, this renders this program obsolete, as blocking users 
- * is now impossible. God help us all.
- * HOwever, this tool CAN be used to force dedicated servers, so maybe that helps with lag? I dont know.
- */
 
 public class watchdog_main {
 	
