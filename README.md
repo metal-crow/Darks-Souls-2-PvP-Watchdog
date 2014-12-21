@@ -1,10 +1,11 @@
 Darks-Souls-2-PvP-Watchdog
 ==========================
-
-Will allow people playing dark souls 2 to exclude a person they have matched up with, and not connect with them again.
-
+  
+No longer being worked on, development is dead. I dont play 2 anymore.  
+Would allow people playing dark souls 2 to exclude a person they have matched up with, and not connect with them again.  
+  
 RESULTS:  
-Well, after weeks of work i have determined that Dark souls 2 will fall back to a dedicated server connection with valve's server if p2p fails.
+Well, after testing i have determined that Dark souls 2 will fall back to a dedicated server connection with valve's server if p2p fails.
 See attached image for me sending Dark Souls 2 data packets direct to valve's servers, while im playing against a person http://a.pomf.se/cbmgyy.png  
   
 However, this tool CAN be used to force dedicated servers, so this may help with lag.
