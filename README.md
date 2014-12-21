@@ -4,12 +4,13 @@ Darks-Souls-2-PvP-Watchdog
 Will allow people playing dark souls 2 to exclude a person they have matched up with, and not connect with them again.
 
 RESULTS:  
-Well, after weeks of work i have determined that Dark souls 2 will fall back to a dedicated server connection with valve's server if p2p fails.  
-Unless I'm mistaken about this discovery, this renders this program obsolete, as blocking users is now impossible. God help us all.  
-(See attached image for me sending Dark Souls 2 data packets direct to valve's servers, while im playing against a person) http://a.pomf.se/cbmgyy.png  
+Well, after weeks of work i have determined that Dark souls 2 will fall back to a dedicated server connection with valve's server if p2p fails.
+See attached image for me sending Dark Souls 2 data packets direct to valve's servers, while im playing against a person http://a.pomf.se/cbmgyy.png  
   
 However, this tool CAN be used to force dedicated servers, so this may help with lag.
-
+  
+Turns out Steam's NAT-punching proxies makes ip based blocking imposible, so any mesures have to be done in-game.   Infausto's tool https://bitbucket.org/infausto/dark-souls-pvp-watchdog is probably what you want to look at, especially since 1's now on steam, if you want to figuure out how to block people.  
+I'd say try finding where in-engine the game gets the other player's steam id when they connect, and use an in-engine kick function based on that, but good luck finding where that's stored, if its client side at all.  
 
 HOW TO USE
 ==========================
