@@ -9,7 +9,7 @@ See attached image for me sending Dark Souls 2 data packets direct to valve's se
   
 However, this tool CAN be used to force dedicated servers, so this may help with lag.
   
-Turns out Steam's NAT-punching proxies makes ip based blocking imposible, so any mesures have to be done in-game.   Infausto's tool https://bitbucket.org/infausto/dark-souls-pvp-watchdog is probably what you want to look at, especially since 1's now on steam, if you want to figuure out how to block people.  
+Turns out Steam's NAT-punching proxies makes ip based blocking imposible, so any mesures have to be done in-game.   Infausto's tool https://bitbucket.org/infausto/dark-souls-pvp-watchdog is probably what you want to look at, especially since 1's now on steam, if you want to figure out how to block people.  
 I'd say try finding where in-engine the game gets the other player's steam id when they connect, and use an in-engine kick function based on that, but good luck finding where that's stored, if its client side at all.  
 
 HOW TO USE
